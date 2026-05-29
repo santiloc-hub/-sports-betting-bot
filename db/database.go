@@ -10,19 +10,21 @@ import (
 )
 
 type Bet struct {
-	ID            string    `json:"id"`
-	EventID       string    `json:"eventId"`
-	Timestamp     time.Time `json:"timestamp"`
-	EventName     string    `json:"eventName"`
-	Sport         string    `json:"sport"`
-	League        string    `json:"league"`
-	Bookmaker     string    `json:"bookmaker"`
-	Outcome       string    `json:"outcome"`       // ej. "Real Madrid", "Empate", "Home Win"
-	Odds          float64   `json:"odds"`          // Cuota decimal (ej. 2.10)
-	Stake         float64   `json:"stake"`         // Monto apostado en USD
-	Status        string    `json:"status"`        // "PENDING", "WON", "LOST"
-	NetProfit     float64   `json:"netProfit"`     // Ganancia neta (positiva si gana, -stake si pierde)
-	BankrollAfter float64   `json:"bankrollAfter"` // Balance restante tras registrar la apuesta
+	ID             string    `json:"id"`
+	EventID        string    `json:"eventId"`
+	Timestamp      time.Time `json:"timestamp"`
+	EventName      string    `json:"eventName"`
+	Sport          string    `json:"sport"`
+	League         string    `json:"league"`
+	Bookmaker      string    `json:"bookmaker"`
+	Outcome        string    `json:"outcome"`        // ej. "Real Madrid", "Empate", "Home Win"
+	Odds           float64   `json:"odds"`           // Cuota decimal (ej. 2.10)
+	Stake          float64   `json:"stake"`          // Monto apostado en USD
+	Status         string    `json:"status"`         // "PENDING", "WON", "LOST"
+	NetProfit      float64   `json:"netProfit"`      // Ganancia neta (positiva si gana, -stake si pierde)
+	BankrollAfter  float64   `json:"bankrollAfter"`  // Balance restante tras registrar la apuesta
+	PredictionRule string    `json:"predictionRule"` // Regla de decisión utilizada
+	EstimatedProb  float64   `json:"estimatedProb"`  // Probabilidad estimada por el modelo
 }
 
 type History struct {

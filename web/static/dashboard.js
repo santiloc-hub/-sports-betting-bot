@@ -272,6 +272,8 @@ function loadConfigData() {
             if (data.apiKey) {
                 document.getElementById("txt-api-key").value = data.apiKey;
             }
+            // Lanzar carga inicial de optimización de modelo
+            triggerRetrain();
         })
         .catch(err => console.error("Error al cargar configuración:", err));
 }
@@ -309,5 +311,52 @@ function saveConfig(event) {
         alertBox.style.color = "#dc3545";
         alertBox.style.border = "1px solid rgba(220, 53, 69, 0.4)";
         alertBox.textContent = "Error al guardar la configuración: " + err.message;
+    });
+}
+
+// Solicitar re-entrenamiento del modelo (Grid Search)
+function triggerRetrain() {
+    const tbody = document.getElementById("model-rules-tbody");
+    tbody.innerHTML = `<tr><td colspan="4" class="text-center text-accent" style="padding: 15px 0;">Ejecutando Grid Search retrospectivo...</td></tr>`;
+
+    fetch("/api/retrain", {
+        method: "POST"
+    })
+    .then(res => res.json())
+    .then(data => {
+        // Actualizar KPIs de optimización
+        document.getElementById("lbl-best-rule").textContent = data.bestPerformingRule;
+        document.getElementById("lbl-best-ev").textContent = data.optimalEVThreshold.toFixed(1) + "%";
+        document.getElementById("lbl-best-kelly").textContent = data.optimalKellyFraction.toFixed(2);
+        
+        const roiImprovement = document.getElementById("lbl-roi-improvement");
+        roiImprovement.textContent = "+" + data.estimatedROIImprovement.toFixed(2) + "%";
+        
+        // Renderizar tabla de reglas
+        if (!data.rulesEvaluated || data.rulesEvaluated.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted" style="padding: 15px 0;">El re-entrenamiento requiere al menos 5 apuestas en el historial.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = "";
+        data.rulesEvaluated.forEach(r => {
+            const tr = document.createElement("tr");
+            tr.style.borderBottom = "1px solid rgba(255,255,255,0.05)";
+            
+            const profitClass = r.profit >= 0 ? "positive" : "negative";
+            const profitPrefix = r.profit >= 0 ? "+" : "";
+
+            tr.innerHTML = `
+                <td style="padding: 8px 0;"><strong>${r.ruleName}</strong></td>
+                <td style="padding: 8px 0; text-align: center;">${r.totalBets}</td>
+                <td style="padding: 8px 0; text-align: center;">${r.accuracy.toFixed(1)}%</td>
+                <td style="padding: 8px 0; text-align: right;" class="${profitClass}"><strong>${profitPrefix}$${r.profit.toFixed(2)}</strong></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    })
+    .catch(err => {
+        console.error("Error al re-entrenar modelo:", err);
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center text-danger" style="padding: 15px 0;">Error al ejecutar el optimizador.</td></tr>`;
     });
 }

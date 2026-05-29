@@ -173,13 +173,15 @@
                 </div>
             </section>
 
-            <!-- TAB 3: AJUSTES DE API -->
+            <!-- TAB 3: CENTRO DE INTELIGENCIA Y MODELO -->
             <section id="tab-settings" class="tab-content">
-                <div class="settings-grid">
-                    <article class="panel glass settings-panel" style="max-width: 600px; margin: 0 auto;">
+                <div class="settings-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 24px; align-items: start;">
+                    
+                    <!-- PANEL A: CONFIGURACIÓN -->
+                    <article class="panel glass settings-panel">
                         <div class="panel-header">
                             <h2>Configuración de Clave API</h2>
-                            <span class="panel-subtitle">Conecta con cuotas y resultados de partidos reales</span>
+                            <span class="panel-subtitle">Conecta con cuotas y resultados reales de ATP/WTA y Fútbol</span>
                         </div>
                         <div class="settings-body" style="padding: 20px 0;">
                             <form id="frm-config" onsubmit="saveConfig(event)" style="display: flex; flex-direction: column; gap: 20px;">
@@ -187,7 +189,7 @@
                                     <label for="txt-api-key" style="font-weight: 600; color: var(--text-color);">The Odds API Key</label>
                                     <input type="password" id="txt-api-key" placeholder="Pega tu API Key de The Odds API aquí..." style="padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 14px; outline: none; transition: border 0.3s;" onfocus="this.style.borderColor='var(--accent-color)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'">
                                     <p class="help-text" style="font-size: 12px; color: rgba(255,255,255,0.5); line-height: 1.4;">
-                                        Obtén una clave gratuita en <a href="https://the-odds-api.com/" target="_blank" style="color: var(--accent-color); text-decoration: none; font-weight: 600;">the-odds-api.com</a>. Si se deja vacía, el bot continuará en <strong>modo simulación dinámica de alta velocidad</strong> (ideal para pruebas inmediatas).
+                                        Obtén una clave gratuita en <a href="https://the-odds-api.com/" target="_blank" style="color: var(--accent-color); text-decoration: none; font-weight: 600;">the-odds-api.com</a>. Si se deja vacía, el bot continuará en <strong>modo simulación dinámica</strong> de tenis y fútbol europeo en WSL.
                                     </p>
                                 </div>
                                 <button type="submit" class="tab-btn active" style="align-self: flex-start; padding: 12px 24px; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: bold; border-radius: 8px; background: var(--accent-color); color: #000;">
@@ -198,6 +200,46 @@
                             <div id="cfg-alert" style="margin-top: 15px; padding: 12px; border-radius: 8px; display: none; font-size: 14px; font-weight: 600; text-align: center;"></div>
                         </div>
                     </article>
+
+                    <!-- PANEL B: OPTIMIZACIÓN Y BACKTESTING -->
+                    <article class="panel glass model-panel">
+                        <div class="panel-header">
+                            <h2>Optimización de Modelos & Grid Search</h2>
+                            <span class="panel-subtitle">Evalúa el rendimiento de las reglas en vivo y re-entrena hiperparámetros</span>
+                        </div>
+                        <div class="settings-body" style="padding: 20px 0; display: flex; flex-direction: column; gap: 20px;">
+                            <div class="model-meta" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; gap: 10px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: rgba(255,255,255,0.6);">Mejor Regla del Pool:</span> <strong id="lbl-best-rule" style="color: var(--accent-color);">CONSENSUS_EV</strong></div>
+                                <div style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: rgba(255,255,255,0.6);">Umbral de EV Óptimo:</span> <strong id="lbl-best-ev">1.0%</strong></div>
+                                <div style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: rgba(255,255,255,0.6);">Fracción de Kelly Óptima:</span> <strong id="lbl-best-kelly">0.25</strong></div>
+                                <div style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: rgba(255,255,255,0.6);">Mejora ROI Estimada:</span> <strong id="lbl-roi-improvement" class="positive">+0.00%</strong></div>
+                            </div>
+
+                            <button onclick="triggerRetrain()" class="tab-btn active" style="align-self: flex-start; padding: 12px 24px; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: bold; border-radius: 8px; background: hsl(205, 95%, 55%); color: #fff;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                                Re-entrenar Modelo (Grid Search)
+                            </button>
+
+                            <div class="table-container" style="max-height: 200px; overflow-y: auto;">
+                                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                    <thead>
+                                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); text-align: left;">
+                                            <th style="padding: 8px 0; color: rgba(255,255,255,0.6);">Regla del Pool</th>
+                                            <th style="padding: 8px 0; color: rgba(255,255,255,0.6); text-align: center;">Apuestas</th>
+                                            <th style="padding: 8px 0; color: rgba(255,255,255,0.6); text-align: center;">Acierto %</th>
+                                            <th style="padding: 8px 0; color: rgba(255,255,255,0.6); text-align: right;">Rentabilidad</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="model-rules-tbody">
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted" style="padding: 15px 0;">El re-entrenamiento requiere al menos 5 apuestas en el historial.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </article>
+
                 </div>
             </section>
         </main>

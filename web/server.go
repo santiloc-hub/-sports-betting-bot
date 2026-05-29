@@ -11,6 +11,7 @@ import (
 	"sports-betting-bot/config"
 	"sports-betting-bot/db"
 	"sports-betting-bot/engine"
+	"sports-betting-bot/strategy"
 )
 
 // StartWebServer levanta el servidor HTTP de alta velocidad para servir el panel y los Server-Sent Events
@@ -39,6 +40,7 @@ func StartWebServer(cfg *config.Config) {
 	http.HandleFunc("/api/config", func(w http.ResponseWriter, r *http.Request) {
 		handleConfig(w, r, cfg)
 	})
+	http.HandleFunc("/api/retrain", handleRetrain)
 
 	// Canal de Server-Sent Events (SSE) para tiempo real ultra-rápido de logs y métricas
 	http.HandleFunc("/events", handleSSE(cfg.InitialBankroll))
@@ -182,4 +184,30 @@ func handleConfig(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
 func saveAPIKeyToEnv(apiKey string) {
 	content := fmt.Sprintf("THE_ODDS_API_KEY=\"%s\"\nPORT=8080\nINITIAL_BANKROLL=10000.0\nKELLY_FRACTION=0.25\nSIMULATION_MODE=true\n", apiKey)
 	_ = os.WriteFile(".env", []byte(content), 0644)
+}
+
+func handleRetrain(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Método no permitido"})
+		return
+	}
+
+	history, err := db.GetHistory()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	report := strategy.RetrainModel(history.Bets)
+
+	// Registrar en la consola del bot el re-entrenamiento exitoso
+	engine.AddLog("🤖 [Modelo Optimizado] Grid Search finalizado. Regla estrella: %s. Umbral EV: %.1f%%. Kelly óptimo: %.2f", 
+		report.BestPerformingRule, report.OptimalEVThreshold, report.OptimalKellyFraction)
+
+	json.NewEncoder(w).Encode(report)
 }

@@ -75,9 +75,9 @@ func GenerateMockOdds() []SportsEvent {
 	}{
 		{"soccer_uefa_champions", "Champions League", "Real Madrid", "Manchester City"},
 		{"soccer_uefa_champions", "Champions League", "Barcelona", "Bayern Munich"},
-		{"basketball_nba", "NBA Basketball", "Los Angeles Lakers", "Boston Celtics"},
-		{"basketball_nba", "NBA Basketball", "Golden State Warriors", "Miami Heat"},
-		{"soccer_spain_la_liga", "La Liga Spain", "Atletico Madrid", "Sevilla"},
+		{"tennis_atp", "ATP Tour - Clay", "Carlos Alcaraz", "Jannik Sinner"},
+		{"tennis_atp", "ATP Tour - Clay", "Novak Djokovic", "Daniil Medvedev"},
+		{"tennis_wta", "WTA Tour - Clay", "Iga Swiatek", "Aryna Sabalenka"},
 	}
 
 	bookmakers := []string{"Bet365", "Pinnacle", "Polymarket", "DraftKings", "Bwin"}
@@ -94,15 +94,20 @@ func GenerateMockOdds() []SportsEvent {
 		} else if i == 1 { // Barca vs Bayern (Bayern favorito)
 			baseHomeOdds = 3.10 + (rand.Float64() * 0.40 - 0.20)
 			baseAwayOdds = 1.95 + (rand.Float64() * 0.15 - 0.08)
-		} else { // Otros partidos
-			baseHomeOdds = 1.80 + (rand.Float64() * 0.30 - 0.15)
-			baseAwayOdds = 2.10 + (rand.Float64() * 0.30 - 0.15)
+		} else if i == 2 { // Alcaraz vs Sinner (Alcaraz leve favorito en arcilla)
+			baseHomeOdds = 1.72 + (rand.Float64() * 0.15 - 0.07)
+			baseAwayOdds = 2.15 + (rand.Float64() * 0.20 - 0.10)
+		} else if i == 3 { // Djokovic vs Medvedev (Djokovic favorito)
+			baseHomeOdds = 1.45 + (rand.Float64() * 0.10 - 0.05)
+			baseAwayOdds = 2.80 + (rand.Float64() * 0.30 - 0.15)
+		} else { // Swiatek vs Sabalenka (Swiatek favorita en arcilla)
+			baseHomeOdds = 1.55 + (rand.Float64() * 0.12 - 0.06)
+			baseAwayOdds = 2.45 + (rand.Float64() * 0.25 - 0.12)
 		}
 
 		bms := make([]Bookmaker, len(bookmakers))
 		for j, bmTitle := range bookmakers {
 			// Introducir ligeras diferencias entre casas para simular oportunidades de arbitraje ocasionales
-			// Especialmente en Polymarket, las cuotas suelen fluctuar más rápido por la opinión pública
 			var homeVar, awayVar float64
 			if bmTitle == "Polymarket" {
 				homeVar = (rand.Float64() * 0.35) - 0.15 // Fluctuación mayor
@@ -124,8 +129,8 @@ func GenerateMockOdds() []SportsEvent {
 				{Name: m.away, Price: truncate(awayOdds)},
 			}
 
-			// Añadir empate para fútbol
-			if m.sport != "basketball_nba" {
+			// Añadir empate únicamente para fútbol
+			if m.sport == "soccer_uefa_champions" || m.sport == "soccer_spain_la_liga" {
 				baseDrawOdds := 3.20 + (rand.Float64() * 0.40 - 0.20)
 				outcomes = append(outcomes, Outcome{Name: "Draw", Price: truncate(baseDrawOdds)})
 			}
