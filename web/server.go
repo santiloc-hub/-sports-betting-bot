@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"sports-betting-bot/config"
@@ -42,6 +43,9 @@ func StartWebServer(cfg *config.Config) {
 	})
 	http.HandleFunc("/api/retrain", handleRetrain)
 	http.HandleFunc("/api/scanned", handleGetScanned)
+	http.HandleFunc("/api/reset", func(w http.ResponseWriter, r *http.Request) {
+		handleReset(w, r, cfg)
+	})
 
 	// Canal de Server-Sent Events (SSE) para tiempo real ultra-rápido de logs y métricas
 	http.HandleFunc("/events", handleSSE(cfg.InitialBankroll))
@@ -149,7 +153,18 @@ func handleConfig(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	if r.Method == http.MethodGet {
-		json.NewEncoder(w).Encode(map[string]string{"apiKey": cfg.APIKey})
+		res := map[string]interface{}{
+			"apiKey":          cfg.APIKey,
+			"initialBankroll": cfg.InitialBankroll,
+			"kellyFraction":   cfg.KellyFraction,
+			"simulationMode":  cfg.SimulationMode,
+			"sportsToScan":    strings.Join(cfg.SportsToScan, ","),
+			"minEVThreshold":  cfg.MinEVThreshold,
+			"sharpBookmaker":  cfg.SharpBookmaker,
+			"minOdds":         cfg.MinOdds,
+			"maxOdds":         cfg.MaxOdds,
+		}
+		json.NewEncoder(w).Encode(res)
 		return
 	}
 
@@ -160,8 +175,17 @@ func handleConfig(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
 	}
 
 	var req struct {
-		APIKey string `json:"apiKey"`
+		APIKey          string  `json:"apiKey"`
+		InitialBankroll float64 `json:"initialBankroll"`
+		KellyFraction   float64 `json:"kellyFraction"`
+		SimulationMode  bool    `json:"simulationMode"`
+		SportsToScan    string  `json:"sportsToScan"`
+		MinEVThreshold  float64 `json:"minEVThreshold"`
+		SharpBookmaker  string  `json:"sharpBookmaker"`
+		MinOdds         float64 `json:"minOdds"`
+		MaxOdds         float64 `json:"maxOdds"`
 	}
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "JSON inválido"})
@@ -170,20 +194,72 @@ func handleConfig(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
 
 	// Actualizar en caliente
 	cfg.APIKey = req.APIKey
-	saveAPIKeyToEnv(req.APIKey)
+	cfg.InitialBankroll = req.InitialBankroll
+	cfg.KellyFraction = req.KellyFraction
+	cfg.SimulationMode = req.SimulationMode
 
-	engine.AddLog("🔑 API Key de The Odds API actualizada en vivo.")
-	if req.APIKey == "" {
-		engine.AddLog("[Simulación Activa] API Key removida. Operando con simulador acelerado.")
+	// Parsear deportes
+	var sports []string
+	if req.SportsToScan != "" {
+		parts := strings.Split(req.SportsToScan, ",")
+		for _, p := range parts {
+			t := strings.TrimSpace(p)
+			if t != "" {
+				sports = append(sports, t)
+			}
+		}
+	}
+	if len(sports) == 0 {
+		sports = []string{"upcoming"}
+	}
+	cfg.SportsToScan = sports
+
+	cfg.MinEVThreshold = req.MinEVThreshold
+	cfg.SharpBookmaker = req.SharpBookmaker
+	cfg.MinOdds = req.MinOdds
+	cfg.MaxOdds = req.MaxOdds
+
+	saveConfigToEnv(cfg)
+
+	engine.AddLog("⚙️ Configuración del Bot y Estrategia actualizada en caliente.")
+	if cfg.APIKey == "" {
+		engine.AddLog("[Simulación Activa] Operando con generador de cuotas dinámicas de alta fidelidad.")
 	} else {
 		engine.AddLog("[API Real Activa] Conectado a The Odds API para cuotas y resultados.")
 	}
 
-	json.NewEncoder(w).Encode(map[string]string{"status": "success", "apiKey": req.APIKey})
+	json.NewEncoder(w).Encode(map[string]interface{}{"status": "success", "config": req})
 }
 
-func saveAPIKeyToEnv(apiKey string) {
-	content := fmt.Sprintf("THE_ODDS_API_KEY=\"%s\"\nPORT=8080\nINITIAL_BANKROLL=10000.0\nKELLY_FRACTION=0.25\nSIMULATION_MODE=true\n", apiKey)
+func saveConfigToEnv(cfg *config.Config) {
+	var sportsStr string
+	if len(cfg.SportsToScan) > 0 {
+		sportsStr = strings.Join(cfg.SportsToScan, ",")
+	} else {
+		sportsStr = "upcoming"
+	}
+	content := fmt.Sprintf(
+		"THE_ODDS_API_KEY=\"%s\"\n"+
+		"PORT=%s\n"+
+		"INITIAL_BANKROLL=%.2f\n"+
+		"KELLY_FRACTION=%.2f\n"+
+		"SIMULATION_MODE=%t\n"+
+		"SPORTS_TO_SCAN=\"%s\"\n"+
+		"MIN_EV_THRESHOLD=%.2f\n"+
+		"SHARP_BOOKMAKER=\"%s\"\n"+
+		"MIN_ODDS=%.2f\n"+
+		"MAX_ODDS=%.2f\n",
+		cfg.APIKey,
+		cfg.Port,
+		cfg.InitialBankroll,
+		cfg.KellyFraction,
+		cfg.SimulationMode,
+		sportsStr,
+		cfg.MinEVThreshold,
+		cfg.SharpBookmaker,
+		cfg.MinOdds,
+		cfg.MaxOdds,
+	)
 	_ = os.WriteFile(".env", []byte(content), 0644)
 }
 
@@ -219,4 +295,25 @@ func handleGetScanned(w http.ResponseWriter, r *http.Request) {
 
 	scanned := engine.GetScannedEvents()
 	json.NewEncoder(w).Encode(scanned)
+}
+
+func handleReset(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Método no permitido"})
+		return
+	}
+
+	err := db.ResetDatabase(cfg.InitialBankroll)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	engine.AddLog("🗑️ Base de datos e historial de apuestas reseteados exitosamente.")
+	json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "Historial borrado"})
 }

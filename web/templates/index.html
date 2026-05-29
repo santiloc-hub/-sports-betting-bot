@@ -214,17 +214,68 @@
                         </div>
                         <div class="settings-body" style="padding: 20px 0;">
                             <form id="frm-config" onsubmit="saveConfig(event)" style="display: flex; flex-direction: column; gap: 20px;">
-                                <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
-                                    <label for="txt-api-key" style="font-weight: 600; color: var(--text-color);">The Odds API Key</label>
-                                    <input type="password" id="txt-api-key" placeholder="Pega tu API Key de The Odds API aquí..." style="padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 14px; outline: none; transition: border 0.3s;" onfocus="this.style.borderColor='var(--accent-color)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'">
-                                    <p class="help-text" style="font-size: 12px; color: rgba(255,255,255,0.5); line-height: 1.4;">
-                                        Obtén una clave gratuita en <a href="https://the-odds-api.com/" target="_blank" style="color: var(--accent-color); text-decoration: none; font-weight: 600;">the-odds-api.com</a>. Si se deja vacía, el bot continuará en <strong>modo simulación dinámica</strong> de tenis y fútbol europeo en WSL.
-                                    </p>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
+                                    <div class="form-group" style="display: flex; flex-direction: column; gap: 8px; grid-column: span 2;">
+                                        <label for="txt-api-key" style="font-weight: 600; color: var(--text-color);">The Odds API Key</label>
+                                        <input type="password" id="txt-api-key" placeholder="Pega tu API Key de The Odds API aquí..." style="padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 14px; outline: none; transition: border 0.3s;" onfocus="this.style.borderColor='var(--accent-color)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'">
+                                        <p class="help-text" style="font-size: 11px; color: rgba(255,255,255,0.5); line-height: 1.4; margin: 0;">
+                                            Obtén una clave gratuita en <a href="https://the-odds-api.com/" target="_blank" style="color: var(--accent-color); text-decoration: none; font-weight: 600;">the-odds-api.com</a>. Si se deja vacía, el bot usará datos de simulación dinámica.
+                                        </p>
+                                    </div>
+                                    
+                                    <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
+                                        <label for="txt-bankroll" style="font-weight: 600; color: var(--text-color);">Banca Inicial ($ USD)</label>
+                                        <input type="number" step="0.01" id="txt-bankroll" placeholder="10000.00" style="padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 14px; outline: none;">
+                                    </div>
+
+                                    <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
+                                        <label for="txt-kelly-fraction" style="font-weight: 600; color: var(--text-color);">Coeficiente de Kelly</label>
+                                        <input type="number" step="0.01" id="txt-kelly-fraction" placeholder="0.25" style="padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 14px; outline: none;">
+                                    </div>
+
+                                    <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
+                                        <label for="txt-sports" style="font-weight: 600; color: var(--text-color);">Deportes a Escanear</label>
+                                        <input type="text" id="txt-sports" placeholder="tennis_atp,tennis_wta,soccer" style="padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 14px; outline: none;">
+                                        <p style="font-size: 10px; color: rgba(255,255,255,0.4); margin: 0;">Separados por coma o "upcoming"</p>
+                                    </div>
+
+                                    <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
+                                        <label for="txt-min-ev" style="font-weight: 600; color: var(--text-color);">EV Mínimo (%)</label>
+                                        <input type="number" step="0.1" id="txt-min-ev" placeholder="1.0" style="padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 14px; outline: none;">
+                                    </div>
+
+                                    <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
+                                        <label for="txt-sharp-bm" style="font-weight: 600; color: var(--text-color);">Casa Sharp de Referencia</label>
+                                        <input type="text" id="txt-sharp-bm" placeholder="Pinnacle" style="padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 14px; outline: none;">
+                                    </div>
+
+                                    <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
+                                        <label for="txt-min-odds" style="font-weight: 600; color: var(--text-color);">Cuota Mínima</label>
+                                        <input type="number" step="0.01" id="txt-min-odds" placeholder="1.05" style="padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 14px; outline: none;">
+                                    </div>
+
+                                    <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
+                                        <label for="txt-max-odds" style="font-weight: 600; color: var(--text-color);">Cuota Máxima</label>
+                                        <input type="number" step="0.01" id="txt-max-odds" placeholder="10.0" style="padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 14px; outline: none;">
+                                    </div>
+
+                                    <div class="form-group" style="display: flex; align-items: center; justify-content: flex-start; height: 100%; padding-top: 15px;">
+                                        <label style="font-weight: 600; color: var(--text-color); display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
+                                            <input type="checkbox" id="chk-sim-mode" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent-color);">
+                                            Modo Simulación Activo
+                                        </label>
+                                    </div>
                                 </div>
-                                <button type="submit" class="tab-btn active" style="align-self: flex-start; padding: 12px 24px; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: bold; border-radius: 8px; background: var(--accent-color); color: #000;">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
-                                    Guardar Configuración
-                                </button>
+                                <div style="display: flex; gap: 12px; align-items: center; margin-top: 10px; flex-wrap: wrap;">
+                                    <button type="submit" class="tab-btn active" style="padding: 12px 24px; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: bold; border-radius: 8px; background: var(--accent-color); color: #000;">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+                                        Guardar Parámetros de Operación
+                                    </button>
+                                    <button type="button" onclick="resetHistory()" class="tab-btn" style="padding: 12px 24px; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: bold; border-radius: 8px; background: rgba(220, 53, 69, 0.15); color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.3); transition: background 0.3s;" onmouseover="this.style.background='rgba(220, 53, 69, 0.3)'" onmouseout="this.style.background='rgba(220, 53, 69, 0.15)'">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                        Borrar Historial y Resetear Banca
+                                    </button>
+                                </div>
                             </form>
                             <div id="cfg-alert" style="margin-top: 15px; padding: 12px; border-radius: 8px; display: none; font-size: 14px; font-weight: 600; text-align: center;"></div>
                         </div>

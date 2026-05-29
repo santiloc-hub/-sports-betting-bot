@@ -277,9 +277,16 @@ function loadConfigData() {
     fetch("/api/config")
         .then(res => res.json())
         .then(data => {
-            if (data.apiKey) {
-                document.getElementById("txt-api-key").value = data.apiKey;
-            }
+            if (data.apiKey) document.getElementById("txt-api-key").value = data.apiKey;
+            if (data.initialBankroll !== undefined) document.getElementById("txt-bankroll").value = data.initialBankroll;
+            if (data.kellyFraction !== undefined) document.getElementById("txt-kelly-fraction").value = data.kellyFraction;
+            if (data.sportsToScan) document.getElementById("txt-sports").value = data.sportsToScan;
+            if (data.minEVThreshold !== undefined) document.getElementById("txt-min-ev").value = data.minEVThreshold;
+            if (data.sharpBookmaker) document.getElementById("txt-sharp-bm").value = data.sharpBookmaker;
+            if (data.minOdds !== undefined) document.getElementById("txt-min-odds").value = data.minOdds;
+            if (data.maxOdds !== undefined) document.getElementById("txt-max-odds").value = data.maxOdds;
+            if (data.simulationMode !== undefined) document.getElementById("chk-sim-mode").checked = data.simulationMode;
+            
             // Lanzar carga inicial de optimización de modelo
             triggerRetrain();
         })
@@ -290,12 +297,33 @@ function loadConfigData() {
 function saveConfig(event) {
     event.preventDefault();
     const apiKey = document.getElementById("txt-api-key").value.trim();
+    const initialBankroll = parseFloat(document.getElementById("txt-bankroll").value) || 1000.0;
+    const kellyFraction = parseFloat(document.getElementById("txt-kelly-fraction").value) || 0.25;
+    const sportsToScan = document.getElementById("txt-sports").value.trim() || "upcoming";
+    const minEVThreshold = parseFloat(document.getElementById("txt-min-ev").value) || 1.0;
+    const sharpBookmaker = document.getElementById("txt-sharp-bm").value.trim() || "Pinnacle";
+    const minOdds = parseFloat(document.getElementById("txt-min-odds").value) || 1.05;
+    const maxOdds = parseFloat(document.getElementById("txt-max-odds").value) || 10.0;
+    const simulationMode = document.getElementById("chk-sim-mode").checked;
+
     const alertBox = document.getElementById("cfg-alert");
+
+    const payload = {
+        apiKey,
+        initialBankroll,
+        kellyFraction,
+        sportsToScan,
+        minEVThreshold,
+        sharpBookmaker,
+        minOdds,
+        maxOdds,
+        simulationMode
+    };
 
     fetch("/api/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey: apiKey })
+        body: JSON.stringify(payload)
     })
     .then(res => res.json())
     .then(data => {
@@ -304,7 +332,7 @@ function saveConfig(event) {
             alertBox.style.background = "rgba(40, 167, 69, 0.2)";
             alertBox.style.color = "#28a745";
             alertBox.style.border = "1px solid rgba(40, 167, 69, 0.4)";
-            alertBox.textContent = "¡Configuración guardada y actualizada en caliente con éxito!";
+            alertBox.textContent = "¡Configuración y estrategia guardadas y actualizadas en caliente con éxito!";
             
             setTimeout(() => {
                 alertBox.style.display = "none";
@@ -410,5 +438,28 @@ function renderScannedTable(scanned) {
             <td>${decisionBadge}</td>
         `;
         tbody.appendChild(tr);
+    });
+}
+
+// Borrar historial y resetear banca
+function resetHistory() {
+    if (!confirm("¿Estás seguro de que deseas borrar todo el historial de apuestas y reiniciar la banca al valor configurado? Esta acción no se puede deshacer y limpiará la base de datos local.")) {
+        return;
+    }
+
+    fetch("/api/reset", {
+        method: "POST"
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === "success") {
+            alert("¡Historial borrado con éxito! La banca se ha reiniciado.");
+            loadRESTData(); // Recargar datos de la tabla y gráfico
+        } else {
+            alert("Error al borrar historial: " + data.error);
+        }
+    })
+    .catch(err => {
+        alert("Error de conexión: " + err.message);
     });
 }

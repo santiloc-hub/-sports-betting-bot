@@ -86,7 +86,7 @@ func generateID() string {
 // StartBotEngine arranca el escaneo y el motor en segundo plano de forma asíncrona
 func StartBotEngine(cfg *config.Config) {
 	AddLog("Iniciando motor de trading deportivo en Go...")
-	AddLog("Modo Simulación: %v | Coeficiente de Kelly: %.2f", cfg.SimulationMode, cfg.KellyFraction)
+	AddLog("Modo Simulación: %v | Coeficiente de Kelly: %.2f | Umbral EV: %.2f%% | Sharp BM: %s", cfg.SimulationMode, cfg.KellyFraction, cfg.MinEVThreshold, cfg.SharpBookmaker)
 	
 	if cfg.APIKey == "" {
 		AddLog("[Simulación Activa] No se detectó API Key. Usando generador de cuotas dinámicas de alta fidelidad.")
@@ -100,7 +100,7 @@ func StartBotEngine(cfg *config.Config) {
 		defer ticker.Stop()
 
 		for range ticker.C {
-			events, err := data_fetcher.FetchOdds(cfg.APIKey)
+			events, err := data_fetcher.FetchOdds(cfg.APIKey, cfg.SportsToScan)
 			if err != nil {
 				AddLog("Error al obtener cuotas: %v", err)
 				continue
@@ -146,7 +146,7 @@ func processEvents(events []data_fetcher.SportsEvent, cfg *config.Config) {
 
 		// Buscar Pinnacle o la primera disponible como sharp de referencia
 		for _, bm := range ev.Bookmakers {
-			if bm.Key == "Pinnacle" || sharpBM == "" {
+			if bm.Key == cfg.SharpBookmaker || sharpBM == "" {
 				for _, m := range bm.Markets {
 					if m.Key == "h2h" && len(m.Outcomes) >= 2 {
 						sharpHomeOdds = m.Outcomes[0].Price
@@ -217,10 +217,10 @@ func processEvents(events []data_fetcher.SportsEvent, cfg *config.Config) {
 		decision := "DESCARTADO"
 		ruleUsed := "CONSENSUS_EV"
 
-		if evHome > 1.0 {
+		if evHome > cfg.MinEVThreshold && bestOddsHome >= cfg.MinOdds && bestOddsHome <= cfg.MaxOdds {
 			decision = fmt.Sprintf("APOSTADO (%s @ %.2f en %s)", ev.HomeTeam, bestOddsHome, bestBMHome)
 			ruleUsed = ruleHome
-		} else if evAway > 1.0 {
+		} else if evAway > cfg.MinEVThreshold && bestOddsAway >= cfg.MinOdds && bestOddsAway <= cfg.MaxOdds {
 			decision = fmt.Sprintf("APOSTADO (%s @ %.2f en %s)", ev.AwayTeam, bestOddsAway, bestBMAway)
 			ruleUsed = ruleAway
 		}
@@ -294,11 +294,21 @@ func processEvents(events []data_fetcher.SportsEvent, cfg *config.Config) {
 }
 
 func evalEV(ev data_fetcher.SportsEvent, bmTitle, outcomeName string, odds, trueProb, currentBankroll float64, ruleName string, cfg *config.Config) {
+	// Validar rango de cuotas
+	if odds < cfg.MinOdds || odds > cfg.MaxOdds {
+		return
+	}
+
+	// Validar umbral de valor esperado (+EV)
+	evPercent := (trueProb*odds - 1.0) * 100
+	if evPercent < cfg.MinEVThreshold {
+		return
+	}
+
 	// Calcular fracción de Kelly
 	kellyF := strategy.CalculateKelly(trueProb, odds, cfg.KellyFraction)
 	
 	if kellyF > 0.005 { // Si la apuesta sugerida es mayor al 0.5% de la banca, hay valor claro (+EV)
-		evPercent := (trueProb*odds - 1.0) * 100
 		stake := currentBankroll * kellyF
 
 		// Asegurar apuesta mínima razonable
@@ -335,7 +345,7 @@ func evalEV(ev data_fetcher.SportsEvent, bmTitle, outcomeName string, odds, true
 			return
 		}
 
-		AddLog("💸 +EV Detectado en [%s] en %s @ %.2f (Prob: %.1f%% | Ventaja: +.1f%%)", 
+		AddLog("💸 +EV Detectado en [%s] en %s @ %.2f (Prob: %.1f%% | Ventaja: +%.1f%%)", 
 			bet.EventName, bet.Bookmaker, bet.Odds, trueProb*100, evPercent)
 		AddLog("   -> Apuesta Simulada Registrada: $%.2f USD en '%s' (Kelly: %.1f%%)", 
 			bet.Stake, bet.Outcome, kellyF*100)

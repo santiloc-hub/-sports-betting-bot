@@ -36,30 +36,43 @@ type SportsEvent struct {
 }
 
 // FetchOdds obtiene cuotas de la API real o genera datos simulados de alta fidelidad si la API Key no está configurada
-func FetchOdds(apiKey string) ([]SportsEvent, error) {
+func FetchOdds(apiKey string, sports []string) ([]SportsEvent, error) {
 	if apiKey == "" {
 		return GenerateMockOdds(), nil
 	}
 
-	url := fmt.Sprintf("https://api.the-odds-api.com/v4/sports/upcoming/odds/?regions=eu,us&markets=h2h&apiKey=%s", apiKey)
+	var allEvents []SportsEvent
 	client := &http.Client{Timeout: 5 * time.Second}
-	
-	resp, err := client.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("error al conectar con The Odds API: %w", err)
-	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("la API respondió con código de estado de error: %d", resp.StatusCode)
+	for _, sport := range sports {
+		var url string
+		if sport == "upcoming" {
+			url = fmt.Sprintf("https://api.the-odds-api.com/v4/sports/upcoming/odds/?regions=eu,us&markets=h2h&apiKey=%s", apiKey)
+		} else {
+			url = fmt.Sprintf("https://api.the-odds-api.com/v4/sports/%s/odds/?regions=eu,us&markets=h2h&apiKey=%s", sport, apiKey)
+		}
+
+		resp, err := client.Get(url)
+		if err != nil {
+			return nil, fmt.Errorf("error al conectar con The Odds API para %s: %w", sport, err)
+		}
+
+		if resp.StatusCode == http.StatusOK {
+			var events []SportsEvent
+			if err := json.NewDecoder(resp.Body).Decode(&events); err == nil {
+				allEvents = append(allEvents, events...)
+			} else {
+				resp.Body.Close()
+				return nil, fmt.Errorf("error al decodificar respuesta de la API para %s: %w", sport, err)
+			}
+		} else {
+			resp.Body.Close()
+			return nil, fmt.Errorf("la API respondió con código de estado de error %d para %s", resp.StatusCode, sport)
+		}
+		resp.Body.Close()
 	}
 
-	var events []SportsEvent
-	if err := json.NewDecoder(resp.Body).Decode(&events); err != nil {
-		return nil, fmt.Errorf("error al decodificar respuesta de la API: %w", err)
-	}
-
-	return events, nil
+	return allEvents, nil
 }
 
 // GenerateMockOdds genera partidos simulados de fútbol europeo y NBA con cuotas dinámicas y fluctuantes

@@ -65,6 +65,18 @@ func InitDatabase(initialBankroll float64) error {
 	return nil
 }
 
+// ResetDatabase limpia todo el historial de apuestas y restablece la banca al valor inicial
+func ResetDatabase(initialBankroll float64) error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	h := &History{
+		CurrentBankroll: initialBankroll,
+		Bets:            []Bet{},
+	}
+	return saveHistoryToFile(h)
+}
+
 // GetHistory retorna todo el historial de manera segura
 func GetHistory() (*History, error) {
 	mu.RLock()

@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 )
 
 type Config struct {
@@ -11,6 +12,11 @@ type Config struct {
 	InitialBankroll float64
 	KellyFraction   float64 // Coeficiente para fraccionar Kelly (ej. 0.25 para cuarto de Kelly)
 	SimulationMode  bool
+	SportsToScan    []string
+	MinEVThreshold  float64
+	SharpBookmaker  string
+	MinOdds         float64
+	MaxOdds         float64
 }
 
 // LoadConfig carga la configuración desde el entorno o valores por defecto
@@ -36,12 +42,52 @@ func LoadConfig() *Config {
 		simMode = true
 	}
 
+	sportsStr := getEnv("SPORTS_TO_SCAN", "upcoming")
+	var sports []string
+	if sportsStr != "" {
+		parts := strings.Split(sportsStr, ",")
+		for _, p := range parts {
+			trimmed := cleanEnvStr(p)
+			if trimmed != "" {
+				sports = append(sports, trimmed)
+			}
+		}
+	}
+	if len(sports) == 0 {
+		sports = []string{"upcoming"}
+	}
+
+	minEVStr := getEnv("MIN_EV_THRESHOLD", "1.0")
+	minEV, err := strconv.ParseFloat(minEVStr, 64)
+	if err != nil {
+		minEV = 1.0
+	}
+
+	sharpBM := getEnv("SHARP_BOOKMAKER", "Pinnacle")
+
+	minOddsStr := getEnv("MIN_ODDS", "1.05")
+	minOdds, err := strconv.ParseFloat(minOddsStr, 64)
+	if err != nil {
+		minOdds = 1.05
+	}
+
+	maxOddsStr := getEnv("MAX_ODDS", "10.0")
+	maxOdds, err := strconv.ParseFloat(maxOddsStr, 64)
+	if err != nil {
+		maxOdds = 10.0
+	}
+
 	return &Config{
 		Port:            port,
 		APIKey:          apiKey,
 		InitialBankroll: bankroll,
 		KellyFraction:   kellyFraction,
 		SimulationMode:  simMode,
+		SportsToScan:    sports,
+		MinEVThreshold:  minEV,
+		SharpBookmaker:  sharpBM,
+		MinOdds:         minOdds,
+		MaxOdds:         maxOdds,
 	}
 }
 
