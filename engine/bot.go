@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	mrand "math/rand"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -86,6 +88,9 @@ func StartBotEngine(cfg *config.Config) {
 			// para que el usuario pueda ver resultados y el análisis histórico en pocos segundos de prueba.
 			if cfg.APIKey == "" {
 				resolvePendingBetsSimulated()
+			} else {
+				// Resolver apuestas basadas en eventos reales consultando scores reales
+				resolvePendingBetsReal(cfg.APIKey)
 			}
 		}
 	}()
@@ -213,6 +218,7 @@ func evalEV(ev data_fetcher.SportsEvent, bmTitle, outcomeName string, odds, true
 		// Registrar apuesta simulada
 		bet := &db.Bet{
 			ID:        generateID(),
+			EventID:   ev.ID,
 			EventName: fmt.Sprintf("%s vs %s", ev.HomeTeam, ev.AwayTeam),
 			Sport:     ev.SportTitle,
 			League:    ev.SportKey,
@@ -241,15 +247,14 @@ func isAlreadyPending(eventID, outcome string) bool {
 		return false
 	}
 	for _, b := range h.Bets {
-		if b.EventName == eventID && b.Outcome == outcome && b.Status == "PENDING" {
+		if b.EventID == eventID && b.Outcome == outcome && b.Status == "PENDING" {
 			return true
 		}
 	}
 	return false
 }
 
-// resolvePendingBetsSimulated simula el final de los partidos cada ronda
-// para fines de testeo, resolviendo apuestas según sus probabilidades matemáticas reales
+// resolvePendingBetsSimulated simula el final de los partidos mock cada ronda (acelerado)
 func resolvePendingBetsSimulated() {
 	h, err := db.GetHistory()
 	if err != nil {
@@ -257,9 +262,8 @@ func resolvePendingBetsSimulated() {
 	}
 
 	for _, b := range h.Bets {
-		if b.Status == "PENDING" {
+		if b.Status == "PENDING" && strings.HasPrefix(b.EventID, "mock_match_") {
 			// Calcular probabilidad de ganar aproximada según la cuota
-			// Ej: cuota 2.00 -> 50% de probabilidad de ganar
 			winProb := 1.0 / b.Odds
 			
 			// Ajustar margen de la simulación
@@ -268,15 +272,137 @@ func resolvePendingBetsSimulated() {
 
 			err := db.ResolveBet(b.ID, won)
 			if err != nil {
-				AddLog("Error al resolver apuesta %s: %v", b.ID, err)
+				AddLog("Error al resolver apuesta mock %s: %v", b.ID, err)
 				continue
 			}
 
 			if won {
-				AddLog("✅ ¡APUESTA GANADA! [%s] -> Simulación recupera $%.2f USD (Neto: +$%.2f @ %.2f en %s)", 
+				AddLog("✅ ¡APUESTA SIMULADA GANADA! [%s] -> Simulación recupera $%.2f USD (Neto: +$%.2f @ %.2f en %s)", 
 					b.EventName, b.Stake*b.Odds, b.Stake*(b.Odds-1), b.Odds, b.Bookmaker)
 			} else {
-				AddLog("❌ ¡APUESTA PERDIDA! [%s] -> Simulación pierde -$%.2f USD (@ %.2f en %s)", 
+				AddLog("❌ ¡APUESTA SIMULADA PERDIDA! [%s] -> Simulación pierde -$%.2f USD (@ %.2f en %s)", 
+					b.EventName, b.Stake, b.Odds, b.Bookmaker)
+			}
+		}
+	}
+}
+
+var lastScoresCheck time.Time
+
+// resolvePendingBetsReal consulta la API de resultados reales para liquidar las apuestas pendientes reales
+func resolvePendingBetsReal(apiKey string) {
+	if apiKey == "" {
+		return
+	}
+
+	h, err := db.GetHistory()
+	if err != nil {
+		return
+	}
+
+	// 1. Recopilar apuestas reales pendientes
+	var pendingRealBets []db.Bet
+	uniqueSports := make(map[string]bool)
+
+	for _, b := range h.Bets {
+		if b.Status == "PENDING" && !strings.HasPrefix(b.EventID, "mock_match_") {
+			pendingRealBets = append(pendingRealBets, b)
+			// Guardar el identificador del deporte (ej: basketball_nba)
+			if b.League != "" {
+				uniqueSports[b.League] = true
+			}
+		}
+	}
+
+	// Si no hay apuestas reales pendientes, no consultamos la API (ahorramos peticiones)
+	if len(pendingRealBets) == 0 {
+		return
+	}
+
+	// Limitar consultas a la API de scores a un máximo de una vez cada 2 minutos para no agotar la cuota API
+	if time.Since(lastScoresCheck) < 2*time.Minute {
+		return
+	}
+	lastScoresCheck = time.Now()
+
+	AddLog("🔄 Consultando resultados reales de partidos para resolver %d apuestas pendientes...", len(pendingRealBets))
+
+	// 2. Consultar puntuaciones por cada deporte único
+	for sportKey := range uniqueSports {
+		scores, err := data_fetcher.FetchScores(sportKey, apiKey)
+		if err != nil {
+			AddLog("Error al obtener resultados para %s: %v", sportKey, err)
+			continue
+		}
+
+		// Crear mapa rápido para buscar resultados de eventos por ID
+		eventMap := make(map[string]data_fetcher.EventScore)
+		for _, s := range scores {
+			eventMap[s.ID] = s
+		}
+
+		// 3. Procesar las apuestas correspondientes a este deporte
+		for _, b := range pendingRealBets {
+			if b.League != sportKey {
+				continue
+			}
+
+			evScore, exists := eventMap[b.EventID]
+			if !exists {
+				continue // Partido aún no finalizado o no reportado en las últimas 72 horas
+			}
+
+			if !evScore.Completed {
+				continue // El partido sigue en juego o aún no comienza
+			}
+
+			// El partido ha finalizado, resolver apuesta según puntuación real
+			if len(evScore.Scores) < 2 {
+				continue
+			}
+
+			// Extraer puntajes
+			scoreHomeVal := 0
+			scoreAwayVal := 0
+			for _, teamScore := range evScore.Scores {
+				scoreInt, _ := strconv.Atoi(teamScore.Score)
+				if teamScore.Name == evScore.HomeTeam {
+					scoreHomeVal = scoreInt
+				} else if teamScore.Name == evScore.AwayTeam {
+					scoreAwayVal = scoreInt
+				}
+			}
+
+			// Determinar resultado real
+			var winner string
+			if scoreHomeVal > scoreAwayVal {
+				winner = evScore.HomeTeam
+			} else if scoreAwayVal > scoreHomeVal {
+				winner = evScore.AwayTeam
+			} else {
+				winner = "Draw" // Empate
+			}
+
+			// Evaluar si la apuesta fue ganadora
+			won := false
+			if b.Outcome == winner {
+				won = true
+			} else if (b.Outcome == "Draw" || b.Outcome == "Empate") && winner == "Draw" {
+				won = true
+			}
+
+			// Resolver apuesta en la base de datos
+			err = db.ResolveBet(b.ID, won)
+			if err != nil {
+				AddLog("Error al liquidar apuesta real %s: %v", b.ID, err)
+				continue
+			}
+
+			if won {
+				AddLog("🎉 ✅ ¡APUESTA REAL GANADA! [%s] -> Simulación recupera $%.2f USD reales (Neto: +$%.2f @ %.2f en %s)", 
+					b.EventName, b.Stake*b.Odds, b.Stake*(b.Odds-1), b.Odds, b.Bookmaker)
+			} else {
+				AddLog("💔 ❌ ¡APUESTA REAL PERDIDA! [%s] -> Simulación pierde -$%.2f USD reales (@ %.2f en %s)", 
 					b.EventName, b.Stake, b.Odds, b.Bookmaker)
 			}
 		}

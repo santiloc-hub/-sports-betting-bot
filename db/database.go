@@ -11,6 +11,7 @@ import (
 
 type Bet struct {
 	ID            string    `json:"id"`
+	EventID       string    `json:"eventId"`
 	Timestamp     time.Time `json:"timestamp"`
 	EventName     string    `json:"eventName"`
 	Sport         string    `json:"sport"`

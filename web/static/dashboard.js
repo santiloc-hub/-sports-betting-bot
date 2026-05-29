@@ -9,6 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initSSE();
     initChart();
     loadRESTData();
+    loadConfigData();
 });
 
 // Pestañas (Tab Switcher)
@@ -18,10 +19,12 @@ function switchTab(tab) {
     // Toggle botones activos
     document.getElementById("btn-live-tab").classList.toggle("active", tab === 'live');
     document.getElementById("btn-history-tab").classList.toggle("active", tab === 'history');
+    document.getElementById("btn-settings-tab").classList.toggle("active", tab === 'settings');
     
     // Toggle contenido de pestañas
     document.getElementById("tab-live").classList.toggle("active", tab === 'live');
     document.getElementById("tab-history").classList.toggle("active", tab === 'history');
+    document.getElementById("tab-settings").classList.toggle("active", tab === 'settings');
 
     // Forzar redibujo del gráfico al entrar a la pestaña de análisis histórico
     if (tab === 'history' && bankrollChart) {
@@ -259,4 +262,52 @@ function updateChartData(bets) {
 
 function formatUSD(value) {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+}
+
+// Cargar la configuración actual desde el servidor
+function loadConfigData() {
+    fetch("/api/config")
+        .then(res => res.json())
+        .then(data => {
+            if (data.apiKey) {
+                document.getElementById("txt-api-key").value = data.apiKey;
+            }
+        })
+        .catch(err => console.error("Error al cargar configuración:", err));
+}
+
+// Guardar la configuración en caliente
+function saveConfig(event) {
+    event.preventDefault();
+    const apiKey = document.getElementById("txt-api-key").value.trim();
+    const alertBox = document.getElementById("cfg-alert");
+
+    fetch("/api/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: apiKey })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === "success") {
+            alertBox.style.display = "block";
+            alertBox.style.background = "rgba(40, 167, 69, 0.2)";
+            alertBox.style.color = "#28a745";
+            alertBox.style.border = "1px solid rgba(40, 167, 69, 0.4)";
+            alertBox.textContent = "¡Configuración guardada y actualizada en caliente con éxito!";
+            
+            setTimeout(() => {
+                alertBox.style.display = "none";
+            }, 4000);
+        } else {
+            throw new Error(data.error || "Fallo al guardar");
+        }
+    })
+    .catch(err => {
+        alertBox.style.display = "block";
+        alertBox.style.background = "rgba(220, 53, 69, 0.2)";
+        alertBox.style.color = "#dc3545";
+        alertBox.style.border = "1px solid rgba(220, 53, 69, 0.4)";
+        alertBox.textContent = "Error al guardar la configuración: " + err.message;
+    });
 }

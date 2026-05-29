@@ -157,6 +157,47 @@ func GenerateMockOdds() []SportsEvent {
 	return events
 }
 
+type Score struct {
+	Name  string `json:"name"`
+	Score string `json:"score"`
+}
+
+type EventScore struct {
+	ID           string  `json:"id"`
+	SportKey     string  `json:"sport_key"`
+	Completed    bool    `json:"completed"`
+	HomeTeam     string  `json:"home_team"`
+	AwayTeam     string  `json:"away_team"`
+	Scores       []Score `json:"scores"`
+}
+
+// FetchScores obtiene resultados reales de partidos desde The Odds API
+func FetchScores(sport string, apiKey string) ([]EventScore, error) {
+	if apiKey == "" {
+		return nil, fmt.Errorf("se requiere API Key para consultar resultados reales")
+	}
+
+	url := fmt.Sprintf("https://api.the-odds-api.com/v4/sports/%s/scores/?daysFrom=3&apiKey=%s", sport, apiKey)
+	client := &http.Client{Timeout: 5 * time.Second}
+	
+	resp, err := client.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("error al conectar con The Odds API scores: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("la API de resultados respondió con código de estado: %d", resp.StatusCode)
+	}
+
+	var scores []EventScore
+	if err := json.NewDecoder(resp.Body).Decode(&scores); err != nil {
+		return nil, fmt.Errorf("error al decodificar resultados de la API: %w", err)
+	}
+
+	return scores, nil
+}
+
 func truncate(f float64) float64 {
 	return float64(int(f*100)) / 100
 }

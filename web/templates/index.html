@@ -31,6 +31,10 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m18.7 8-5.1 5.2-2.8-2.7L7 14.3"/></svg>
                     Análisis Histórico
                 </button>
+                <button class="tab-btn" id="btn-settings-tab" onclick="switchTab('settings')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    Ajustes de API
+                </button>
             </nav>
             <div class="header-badges">
                 <span class="engine-badge">ENGINE: GO (GOLANG)</span>
@@ -166,6 +170,34 @@
                             <p class="stats-desc">Cantidad de partidos terminados y liquidados por el bot.</p>
                         </article>
                     </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: AJUSTES DE API -->
+            <section id="tab-settings" class="tab-content">
+                <div class="settings-grid">
+                    <article class="panel glass settings-panel" style="max-width: 600px; margin: 0 auto;">
+                        <div class="panel-header">
+                            <h2>Configuración de Clave API</h2>
+                            <span class="panel-subtitle">Conecta con cuotas y resultados de partidos reales</span>
+                        </div>
+                        <div class="settings-body" style="padding: 20px 0;">
+                            <form id="frm-config" onsubmit="saveConfig(event)" style="display: flex; flex-direction: column; gap: 20px;">
+                                <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
+                                    <label for="txt-api-key" style="font-weight: 600; color: var(--text-color);">The Odds API Key</label>
+                                    <input type="password" id="txt-api-key" placeholder="Pega tu API Key de The Odds API aquí..." style="padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 14px; outline: none; transition: border 0.3s;" onfocus="this.style.borderColor='var(--accent-color)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'">
+                                    <p class="help-text" style="font-size: 12px; color: rgba(255,255,255,0.5); line-height: 1.4;">
+                                        Obtén una clave gratuita en <a href="https://the-odds-api.com/" target="_blank" style="color: var(--accent-color); text-decoration: none; font-weight: 600;">the-odds-api.com</a>. Si se deja vacía, el bot continuará en <strong>modo simulación dinámica de alta velocidad</strong> (ideal para pruebas inmediatas).
+                                    </p>
+                                </div>
+                                <button type="submit" class="tab-btn active" style="align-self: flex-start; padding: 12px 24px; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: bold; border-radius: 8px; background: var(--accent-color); color: #000;">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+                                    Guardar Configuración
+                                </button>
+                            </form>
+                            <div id="cfg-alert" style="margin-top: 15px; padding: 12px; border-radius: 8px; display: none; font-size: 14px; font-weight: 600; text-align: center;"></div>
+                        </div>
+                    </article>
                 </div>
             </section>
         </main>

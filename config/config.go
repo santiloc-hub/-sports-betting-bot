@@ -51,3 +51,68 @@ func getEnv(key, defaultVal string) string {
 	}
 	return defaultVal
 }
+
+func init() {
+	loadDotEnv()
+}
+
+func loadDotEnv() {
+	file, err := os.Open(".env")
+	if err != nil {
+		return // Si no existe, no pasa nada
+	}
+	defer file.Close()
+
+	var lines []string
+	var buf []byte
+	tempBuf := make([]byte, 1)
+	for {
+		n, err := file.Read(tempBuf)
+		if n > 0 {
+			if tempBuf[0] == '\n' {
+				lines = append(lines, string(buf))
+				buf = []byte{}
+			} else {
+				buf = append(buf, tempBuf[0])
+			}
+		}
+		if err != nil {
+			if len(buf) > 0 {
+				lines = append(lines, string(buf))
+			}
+			break
+		}
+	}
+
+	for _, line := range lines {
+		if len(line) == 0 || line[0] == '#' {
+			continue
+		}
+		for i := 0; i < len(line); i++ {
+			if line[i] == '=' {
+				key := line[:i]
+				val := line[i+1:]
+				key = cleanEnvStr(key)
+				val = cleanEnvStr(val)
+				_ = os.Setenv(key, val)
+				break
+			}
+		}
+	}
+}
+
+func cleanEnvStr(s string) string {
+	for len(s) > 0 && s[0] == ' ' {
+		s = s[1:]
+	}
+	for len(s) > 0 && s[len(s)-1] == ' ' {
+		s = s[:len(s)-1]
+	}
+	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
+		s = s[1 : len(s)-1]
+	}
+	if len(s) >= 2 && s[0] == '\'' && s[len(s)-1] == '\'' {
+		s = s[1 : len(s)-1]
+	}
+	return s
+}

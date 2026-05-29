@@ -36,6 +36,9 @@ func StartWebServer(cfg *config.Config) {
 	http.HandleFunc("/api/stats", func(w http.ResponseWriter, r *http.Request) {
 		handleGetStats(w, r, cfg.InitialBankroll)
 	})
+	http.HandleFunc("/api/config", func(w http.ResponseWriter, r *http.Request) {
+		handleConfig(w, r, cfg)
+	})
 
 	// Canal de Server-Sent Events (SSE) para tiempo real ultra-rápido de logs y métricas
 	http.HandleFunc("/events", handleSSE(cfg.InitialBankroll))
@@ -136,4 +139,47 @@ func sendCurrentStats(w http.ResponseWriter, flusher http.Flusher, initialBankro
 
 	fmt.Fprintf(w, "event: stats\ndata: %s\n\n", string(statsBytes))
 	flusher.Flush()
+}
+
+func handleConfig(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if r.Method == http.MethodGet {
+		json.NewEncoder(w).Encode(map[string]string{"apiKey": cfg.APIKey})
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Método no permitido"})
+		return
+	}
+
+	var req struct {
+		APIKey string `json:"apiKey"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "JSON inválido"})
+		return
+	}
+
+	// Actualizar en caliente
+	cfg.APIKey = req.APIKey
+	saveAPIKeyToEnv(req.APIKey)
+
+	engine.AddLog("🔑 API Key de The Odds API actualizada en vivo.")
+	if req.APIKey == "" {
+		engine.AddLog("[Simulación Activa] API Key removida. Operando con simulador acelerado.")
+	} else {
+		engine.AddLog("[API Real Activa] Conectado a The Odds API para cuotas y resultados.")
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{"status": "success", "apiKey": req.APIKey})
+}
+
+func saveAPIKeyToEnv(apiKey string) {
+	content := fmt.Sprintf("THE_ODDS_API_KEY=\"%s\"\nPORT=8080\nINITIAL_BANKROLL=10000.0\nKELLY_FRACTION=0.25\nSIMULATION_MODE=true\n", apiKey)
+	_ = os.WriteFile(".env", []byte(content), 0644)
 }
