@@ -28,6 +28,10 @@ Hemos inicializado las siguientes skills para ayudarte a operar y mejorar el bot
 * **Propósito**: Explicación conceptual (para dummies) y rigurosa (para científicos de datos) sobre el flujo de datos del bot, matemáticas y arquitectura.
 * **Uso**: Sirve como documentación de referencia viva para mí o cualquier otro agente que trabaje en este código, y la mantendremos actualizada ante cualquier cambio en las reglas de negocio del bot.
 
+### 4. 📅 [daily-analysis](file:///mnt/c/Users/SANTI/.gemini/antigravity/scratch/sports-betting-bot/skills/daily-analysis/SKILL.md)
+* **Propósito**: Escanear partidos programados del día de tenis y fútbol, cruzar datos de APIs estadísticas e históricas para estimar probabilidades e identificar apuestas +EV.
+* **Uso**: Útil para realizar la fase de investigación previa a la jornada deportiva y emitir portafolios de apuestas optimizados.
+
 ---
 
 ## ✍️ Cómo Crear una Nueva Skill
