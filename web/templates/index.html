@@ -127,6 +127,35 @@
                             </table>
                         </div>
                     </article>
+
+                    <!-- PANEL 3: DECISIONES Y ESTRATEGIA (PARTIDOS ANALIZADOS HOY) -->
+                    <article class="panel glass table-panel" id="panel-scanned" style="grid-column: span 2; margin-top: 20px;">
+                        <div class="panel-header">
+                            <h2>Centro de Decisiones: Partidos Analizados Hoy</h2>
+                            <span class="panel-subtitle">Registro en tiempo real del pool probabilístico y decisiones matemáticas</span>
+                        </div>
+                        <div class="table-container" style="max-height: 350px; overflow-y: auto;">
+                            <table id="tbl-scanned">
+                                <thead>
+                                    <tr>
+                                        <th>Hora</th>
+                                        <th>Evento</th>
+                                        <th>Deporte</th>
+                                        <th>Probabilidades Est. (Local / Vis.)</th>
+                                        <th>Mejores Cuotas (Local / Vis.)</th>
+                                        <th>Valor Esperado (Local / Vis.)</th>
+                                        <th>Regla de Decisión</th>
+                                        <th>Decisión del Bot</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="scanned-tbody">
+                                    <tr id="scanned-row-empty">
+                                        <td colspan="8" class="text-center text-muted" style="padding: 20px 0;">Aún no se han analizado partidos en esta ronda. Esperando escaneo...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
                 </div>
             </section>
 

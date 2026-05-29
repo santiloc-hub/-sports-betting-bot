@@ -127,7 +127,7 @@ function updateKPIs(stats) {
     loadRESTData();
 }
 
-// Carga inicial y recarga REST de la lista de apuestas y gráfico
+// Carga inicial y recarga REST de la lista de apuestas, gráfico y decisiones escaneadas
 function loadRESTData() {
     // Cargar historial de apuestas para la tabla
     fetch("/api/history")
@@ -137,6 +137,14 @@ function loadRESTData() {
             updateChartData(data.bets);
         })
         .catch(err => console.error("Error al obtener historial REST:", err));
+
+    // Cargar partidos escaneados hoy y decisiones
+    fetch("/api/scanned")
+        .then(res => res.json())
+        .then(data => {
+            renderScannedTable(data);
+        })
+        .catch(err => console.error("Error al obtener escaneados REST:", err));
 }
 
 // Renderizar dinámicamente la tabla de apuestas recientes
@@ -358,5 +366,49 @@ function triggerRetrain() {
     .catch(err => {
         console.error("Error al re-entrenar modelo:", err);
         tbody.innerHTML = `<tr><td colspan="4" class="text-center text-danger" style="padding: 15px 0;">Error al ejecutar el optimizador.</td></tr>`;
+    });
+}
+
+// Renderizar la tabla de decisiones en vivo de partidos escaneados
+function renderScannedTable(scanned) {
+    const tbody = document.getElementById("scanned-tbody");
+    if (!scanned || scanned.length === 0) {
+        tbody.innerHTML = `
+            <tr id="scanned-row-empty">
+                <td colspan="8" class="text-center text-muted" style="padding: 20px 0;">Aún no se han analizado partidos en esta ronda. Esperando escaneo...</td>
+            </tr>`;
+        return;
+    }
+
+    tbody.innerHTML = "";
+    scanned.forEach(s => {
+        const tr = document.createElement("tr");
+
+        const date = new Date(s.timestamp);
+        const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+        // Formatear decisión
+        let decisionBadge = "";
+        if (s.decision.includes("APOSTADO")) {
+            decisionBadge = `<span class="badge badge-won" style="background: rgba(40,167,69,0.2); color: #28a745; border: 1px solid rgba(40,167,69,0.3); font-weight: bold; font-size: 11px;">${s.decision}</span>`;
+        } else {
+            decisionBadge = `<span class="badge badge-lost" style="background: rgba(220,53,69,0.15); color: #dc3545; border: 1px solid rgba(220,53,69,0.25); font-size: 11px;">DESCARTADO</span>`;
+        }
+
+        // Resaltar EV positivo
+        const evHomeClass = s.evHome > 1.0 ? "positive font-bold" : "text-muted";
+        const evAwayClass = s.evAway > 1.0 ? "positive font-bold" : "text-muted";
+
+        tr.innerHTML = `
+            <td class="text-muted" style="font-size: 12px;">${timeStr}</td>
+            <td><strong>${s.eventName}</strong></td>
+            <td><span class="text-muted" style="font-size: 11px;">${s.sport}</span></td>
+            <td style="text-align: center;">${s.trueHomeProb.toFixed(1)}% / ${s.trueAwayProb.toFixed(1)}%</td>
+            <td style="text-align: center;">${s.bestOddsHome.toFixed(2)} / ${s.bestOddsAway.toFixed(2)}</td>
+            <td style="text-align: center;"><span class="${evHomeClass}">${s.evHome.toFixed(2)}%</span> / <span class="${evAwayClass}">${s.evAway.toFixed(2)}%</span></td>
+            <td><span class="badge badge-pending" style="font-size: 11px; font-weight: 600;">${s.ruleUsed}</span></td>
+            <td>${decisionBadge}</td>
+        `;
+        tbody.appendChild(tr);
     });
 }

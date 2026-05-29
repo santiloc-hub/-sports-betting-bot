@@ -17,11 +17,36 @@ import (
 	"sports-betting-bot/strategy"
 )
 
+type ScannedEvent struct {
+	EventID      string    `json:"eventId"`
+	Timestamp    time.Time `json:"timestamp"`
+	EventName    string    `json:"eventName"`
+	Sport        string    `json:"sport"`
+	TrueHomeProb float64   `json:"trueHomeProb"`
+	TrueAwayProb float64   `json:"trueAwayProb"`
+	BestOddsHome float64   `json:"bestOddsHome"`
+	BestOddsAway float64   `json:"bestOddsAway"`
+	EVHome       float64   `json:"evHome"`
+	EVAway       float64   `json:"evAway"`
+	Decision     string    `json:"decision"` // "APOSTADO (Local)", "APOSTADO (Visitante)", "DESCARTADO"
+	RuleUsed     string    `json:"ruleUsed"`
+}
+
 var (
 	activityLogs []string
 	logMu        sync.Mutex
 	LogChan      = make(chan string, 100)
+	ScannedList  []ScannedEvent
+	ScannedMu    sync.Mutex
 )
+
+func GetScannedEvents() []ScannedEvent {
+	ScannedMu.Lock()
+	defer ScannedMu.Unlock()
+	events := make([]ScannedEvent, len(ScannedList))
+	copy(events, ScannedList)
+	return events
+}
 
 // AddLog agrega un log a la consola interna y lo envía al canal WebSocket/SSE
 func AddLog(format string, v ...interface{}) {
@@ -104,6 +129,11 @@ func processEvents(events []data_fetcher.SportsEvent, cfg *config.Config) {
 		return
 	}
 
+	// Limpiar y resetear lista de escaneados del día
+	ScannedMu.Lock()
+	ScannedList = []ScannedEvent{}
+	ScannedMu.Unlock()
+
 	for _, ev := range events {
 		// Validar que tengamos al menos 2 casas de apuestas para comparar
 		if len(ev.Bookmakers) < 2 {
@@ -111,12 +141,10 @@ func processEvents(events []data_fetcher.SportsEvent, cfg *config.Config) {
 		}
 
 		// 1. ANÁLISIS DE APUESTAS DE VALOR (+EV)
-		// Tomamos Pinnacle o el promedio general como "cuota justa/verdadera"
-		// y buscamos si Polymarket u otra casa ofrece un precio mucho mayor (outlier).
 		var sharpHomeOdds, sharpAwayOdds float64
 		var sharpBM string
 
-		// Intentamos buscar Pinnacle como casa de referencia sharp. Si no está, usamos la primera disponible.
+		// Buscar Pinnacle o la primera disponible como sharp de referencia
 		for _, bm := range ev.Bookmakers {
 			if bm.Key == "Pinnacle" || sharpBM == "" {
 				for _, m := range bm.Markets {
@@ -133,33 +161,30 @@ func processEvents(events []data_fetcher.SportsEvent, cfg *config.Config) {
 			continue
 		}
 
-		// Probabilidades implícitas reales (estimación del modelo ajustado)
+		// Probabilidades implícitas reales
 		trueHomeProb := 1.0 / sharpHomeOdds
 		trueAwayProb := 1.0 / sharpAwayOdds
 		totalProb := trueHomeProb + trueAwayProb
 		trueHomeProb /= totalProb
 		trueAwayProb /= totalProb
 
-		// Pool de Decisiones: Aplicar reglas para estimar p en base al perfil del evento (Fútbol / Tenis)
+		// Pool de Decisiones: Aplicar reglas para estimar p
 		ruleHome := "CONSENSUS_EV"
 		ruleAway := "CONSENSUS_EV"
 
-		// Si es simulación local de Tenis, aplicamos reglas estadísticas dedicadas
+		// Simulación local de Tenis con reglas estadísticas
 		if cfg.APIKey == "" && (ev.SportKey == "tennis_atp" || ev.SportKey == "tennis_wta") {
 			if ev.HomeTeam == "Novak Djokovic" && ev.AwayTeam == "Daniil Medvedev" {
-				// Novak Djokovic domina en H2H a Medvedev
 				trueHomeProb = 0.70
 				trueAwayProb = 0.30
 				ruleHome = "H2H_DOMINANCE"
 				ruleAway = "H2H_DOMINANCE"
 			} else if ev.HomeTeam == "Carlos Alcaraz" && ev.AwayTeam == "Jannik Sinner" {
-				// Alcaraz es especialista en arcilla vs Sinner
 				trueHomeProb = 0.65
 				trueAwayProb = 0.35
 				ruleHome = "SURFACE_SPECIALIST"
 				ruleAway = "SURFACE_SPECIALIST"
 			} else if ev.HomeTeam == "Iga Swiatek" && ev.AwayTeam == "Aryna Sabalenka" {
-				// Swiatek es especialista suprema en arcilla vs Sabalenka
 				trueHomeProb = 0.73
 				trueAwayProb = 0.27
 				ruleHome = "SURFACE_SPECIALIST"
@@ -167,20 +192,70 @@ func processEvents(events []data_fetcher.SportsEvent, cfg *config.Config) {
 			}
 		}
 
-		// Comparar con el resto de casas (especialmente Polymarket) para buscar valor
+		// Encontrar las mejores cuotas del mercado para el reporte
+		var bestOddsHome, bestOddsAway float64
+		var bestBMHome, bestBMAway string
+		for _, bm := range ev.Bookmakers {
+			for _, m := range bm.Markets {
+				if m.Key == "h2h" && len(m.Outcomes) >= 2 {
+					if m.Outcomes[0].Price > bestOddsHome {
+						bestOddsHome = m.Outcomes[0].Price
+						bestBMHome = bm.Title
+					}
+					if m.Outcomes[1].Price > bestOddsAway {
+						bestOddsAway = m.Outcomes[1].Price
+						bestBMAway = bm.Title
+					}
+				}
+			}
+		}
+
+		// Evaluar valor (+EV)
+		evHome := (trueHomeProb*bestOddsHome - 1.0) * 100
+		evAway := (trueAwayProb*bestOddsAway - 1.0) * 100
+
+		decision := "DESCARTADO"
+		ruleUsed := "CONSENSUS_EV"
+
+		if evHome > 1.0 {
+			decision = fmt.Sprintf("APOSTADO (%s @ %.2f en %s)", ev.HomeTeam, bestOddsHome, bestBMHome)
+			ruleUsed = ruleHome
+		} else if evAway > 1.0 {
+			decision = fmt.Sprintf("APOSTADO (%s @ %.2f en %s)", ev.AwayTeam, bestOddsAway, bestBMAway)
+			ruleUsed = ruleAway
+		}
+
+		// Registrar decisión en la lista de escaneados
+		scEv := ScannedEvent{
+			EventID:      ev.ID,
+			Timestamp:    time.Now(),
+			EventName:    fmt.Sprintf("%s vs %s", ev.HomeTeam, ev.AwayTeam),
+			Sport:        ev.SportTitle,
+			TrueHomeProb: truncate(trueHomeProb * 100),
+			TrueAwayProb: truncate(trueAwayProb * 100),
+			BestOddsHome: bestOddsHome,
+			BestOddsAway: bestOddsAway,
+			EVHome:       truncate(evHome),
+			EVAway:       truncate(evAway),
+			Decision:     decision,
+			RuleUsed:     ruleUsed,
+		}
+
+		ScannedMu.Lock()
+		ScannedList = append(ScannedList, scEv)
+		ScannedMu.Unlock()
+
+		// Comparar con el resto de casas para buscar valor e inyectar apuestas en DB
 		for _, bm := range ev.Bookmakers {
 			if bm.Key == sharpBM {
-				continue // No comparar con ella misma
+				continue
 			}
 
 			for _, m := range bm.Markets {
 				if m.Key == "h2h" && len(m.Outcomes) >= 2 {
 					oddsHome := m.Outcomes[0].Price
 					oddsAway := m.Outcomes[1].Price
-
-					// Evaluar Victoria Local (Home)
 					evalEV(ev, bm.Title, ev.HomeTeam, oddsHome, trueHomeProb, history.CurrentBankroll, ruleHome, cfg)
-					// Evaluar Victoria Visitante (Away)
 					evalEV(ev, bm.Title, ev.AwayTeam, oddsAway, trueAwayProb, history.CurrentBankroll, ruleAway, cfg)
 				}
 			}

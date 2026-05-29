@@ -41,6 +41,7 @@ func StartWebServer(cfg *config.Config) {
 		handleConfig(w, r, cfg)
 	})
 	http.HandleFunc("/api/retrain", handleRetrain)
+	http.HandleFunc("/api/scanned", handleGetScanned)
 
 	// Canal de Server-Sent Events (SSE) para tiempo real ultra-rápido de logs y métricas
 	http.HandleFunc("/events", handleSSE(cfg.InitialBankroll))
@@ -210,4 +211,12 @@ func handleRetrain(w http.ResponseWriter, r *http.Request) {
 		report.BestPerformingRule, report.OptimalEVThreshold, report.OptimalKellyFraction)
 
 	json.NewEncoder(w).Encode(report)
+}
+
+func handleGetScanned(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	scanned := engine.GetScannedEvents()
+	json.NewEncoder(w).Encode(scanned)
 }
