@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Antigravity Sports Bot - Low Latency Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Chart.js para análisis histórico -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="glass-bg"></div>
+
+    <div class="container">
+        <!-- HEADER SEMÁNTICO -->
+        <header id="main-header" class="header-glass">
+            <div class="logo-area">
+                <div class="neon-indicator active" id="status-badge"></div>
+                <h1>ANTIGRAVITY <span class="accent-text">SPORTS BOT</span></h1>
+            </div>
+            <nav id="main-nav" class="nav-tabs">
+                <button class="tab-btn active" id="btn-live-tab" onclick="switchTab('live')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    Monitoreo en Vivo
+                </button>
+                <button class="tab-btn" id="btn-history-tab" onclick="switchTab('history')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m18.7 8-5.1 5.2-2.8-2.7L7 14.3"/></svg>
+                    Análisis Histórico
+                </button>
+            </nav>
+            <div class="header-badges">
+                <span class="engine-badge">ENGINE: GO (GOLANG)</span>
+                <span class="latency-badge">LATENCY: &lt;1ms</span>
+            </div>
+        </header>
+
+        <!-- KPI CARDS GRID -->
+        <section class="kpi-grid" id="kpi-section">
+            <article class="kpi-card glass" id="card-bankroll">
+                <div class="kpi-header">
+                    <h3>Capital Total (Simulado)</h3>
+                    <div class="kpi-icon money"></div>
+                </div>
+                <div class="kpi-value" id="val-bankroll">$1,000.00</div>
+                <div class="kpi-subtext positive" id="sub-bankroll">Banca Base Inicial</div>
+            </article>
+
+            <article class="kpi-card glass" id="card-profit">
+                <div class="kpi-header">
+                    <h3>Ganancia Neta Acumulada</h3>
+                    <div class="kpi-icon profit"></div>
+                </div>
+                <div class="kpi-value positive" id="val-profit">+$0.00</div>
+                <div class="kpi-subtext" id="sub-profit">Simulación Activa</div>
+            </article>
+
+            <article class="kpi-card glass" id="card-winrate">
+                <div class="kpi-header">
+                    <h3>Tasa de Acierto (Win Rate)</h3>
+                    <div class="kpi-icon target"></div>
+                </div>
+                <div class="kpi-value" id="val-winrate">0.0%</div>
+                <div class="kpi-subtext" id="sub-winrate">0 apuestas ganadas</div>
+            </article>
+
+            <article class="kpi-card glass" id="card-roi">
+                <div class="kpi-header">
+                    <h3>Retorno de Inversión (ROI)</h3>
+                    <div class="kpi-icon roi"></div>
+                </div>
+                <div class="kpi-value" id="val-roi">0.00%</div>
+                <div class="kpi-subtext" id="sub-roi">Banca Activa</div>
+            </article>
+        </section>
+
+        <!-- MAIN CONTENT AREA -->
+        <main id="main-content">
+            <!-- TAB 1: MONITOREO EN VIVO -->
+            <section id="tab-live" class="tab-content active">
+                <div class="dashboard-grid">
+                    <!-- COLUMNA 1: CONSOLA DE ACTIVIDAD -->
+                    <article class="panel glass console-panel" id="panel-console">
+                        <div class="panel-header">
+                            <h2>Consola de Actividad del Bot</h2>
+                            <div class="panel-actions">
+                                <span class="pulse-icon"></span>
+                                <span class="panel-subtitle">Escaneo asíncrono activo</span>
+                            </div>
+                        </div>
+                        <div class="console-body" id="console-stream">
+                            <div class="console-line text-accent">[SISTEMA] Conectando con el servidor SSE de Go...</div>
+                            <div class="console-line cursor">_</div>
+                        </div>
+                    </article>
+
+                    <!-- COLUMNA 2: APUESTAS REGISTRADAS -->
+                    <article class="panel glass table-panel" id="panel-bets">
+                        <div class="panel-header">
+                            <h2>Apuestas Recientes (Simulación)</h2>
+                            <span class="badge" id="lbl-total-bets">Total: 0</span>
+                        </div>
+                        <div class="table-container">
+                            <table id="tbl-bets">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha / Hora</th>
+                                        <th>Evento</th>
+                                        <th>Deporte</th>
+                                        <th>Detalles Apuesta</th>
+                                        <th>Monto</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bets-tbody">
+                                    <tr id="row-empty">
+                                        <td colspan="6" class="text-center text-muted">Aún no hay apuestas registradas. Esperando cuotas...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <!-- TAB 2: ANÁLISIS HISTÓRICO -->
+            <section id="tab-history" class="tab-content">
+                <div class="analysis-grid">
+                    <!-- GRÁFICO PRINCIPAL DE BALANCE -->
+                    <article class="panel glass chart-panel" id="panel-chart">
+                        <div class="panel-header">
+                            <h2>Curva de Crecimiento del Capital</h2>
+                            <span class="panel-subtitle">Historial de ganancias acumulado en base de datos</span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="bankrollChart" width="800" height="350"></canvas>
+                        </div>
+                    </article>
+
+                    <!-- TARJETAS ANALÍTICAS EXTRAS -->
+                    <div class="stats-subgrid">
+                        <article class="kpi-card stats-subcard glass" id="card-yield">
+                            <div class="kpi-header">
+                                <h4>Yield Promedio</h4>
+                            </div>
+                            <div class="stats-subvalue" id="val-yield">0.00%</div>
+                            <p class="stats-desc">Ganancia neta dividida entre el total de dinero arriesgado.</p>
+                        </article>
+
+                        <article class="kpi-card stats-subcard glass" id="card-drawdown">
+                            <div class="kpi-header">
+                                <h4>Max Drawdown Histórico</h4>
+                            </div>
+                            <div class="stats-subvalue negative" id="val-drawdown">0.00%</div>
+                            <p class="stats-desc">La mayor racha de pérdidas simulada desde la banca pico.</p>
+                        </article>
+
+                        <article class="kpi-card stats-subcard glass" id="card-resolved">
+                            <div class="kpi-header">
+                                <h4>Apuestas Resueltas</h4>
+                            </div>
+                            <div class="stats-subvalue" id="val-resolved-count">0</div>
+                            <p class="stats-desc">Cantidad de partidos terminados y liquidados por el bot.</p>
+                        </article>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- FOOTER SEMÁNTICO -->
+        <footer id="main-footer" class="footer-glass">
+            <p>Antigravity Trading System © 2026. Diseñado para pruebas en Polymarket y APIs deportivas.</p>
+            <div class="footer-links">
+                <a href="https://github.com" target="_blank" class="footer-link">Ver Repositorio Git</a>
+            </div>
+        </footer>
+    </div>
+
+    <!-- JS Principal del Panel -->
+    <script src="/static/dashboard.js"></script>
+</body>
+</html>
