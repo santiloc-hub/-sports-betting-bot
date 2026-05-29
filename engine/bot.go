@@ -1,11 +1,11 @@
 package engine
 
 import (
-	"crypto/rand"
+	crand "crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"log"
-	"math/rand"
+	mrand "math/rand"
 	"sync"
 	"time"
 
@@ -52,7 +52,7 @@ func GetLatestLogs() []string {
 
 func generateID() string {
 	b := make([]byte, 4)
-	rand.Read(b)
+	crand.Read(b)
 	return hex.EncodeToString(b)
 }
 
@@ -263,7 +263,7 @@ func resolvePendingBetsSimulated() {
 			winProb := 1.0 / b.Odds
 			
 			// Ajustar margen de la simulación
-			randVal := rand.Float64()
+			randVal := mrand.Float64()
 			won := randVal < winProb
 
 			err := db.ResolveBet(b.ID, won)

@@ -1,0 +1,21 @@
+# Binarios compilados
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Base de datos local (Simulación)
+history.json
+db/history.json
+
+# Entorno de desarrollo y variables
+.env
+.env.local
+.env.*.local
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
