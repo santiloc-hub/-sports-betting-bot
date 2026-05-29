@@ -24,6 +24,10 @@ Hemos inicializado las siguientes skills para ayudarte a operar y mejorar el bot
 * **Propósito**: Ejecutar simulaciones matemáticas avanzadas utilizando las fórmulas del Criterio de Kelly y Valor Esperado (+EV) para ajustar el balance riesgo/retorno.
 * **Uso**: Ideal para afinar la fracción de Kelly, analizar el historial de apuestas almacenado en `db/history.json` y evaluar el Yield y el Drawdown acumulado.
 
+### 3. 🧠 [explain-bot](file:///mnt/c/Users/SANTI/.gemini/antigravity/scratch/sports-betting-bot/skills/explain-bot/SKILL.md)
+* **Propósito**: Explicación conceptual (para dummies) y rigurosa (para científicos de datos) sobre el flujo de datos del bot, matemáticas y arquitectura.
+* **Uso**: Sirve como documentación de referencia viva para mí o cualquier otro agente que trabaje en este código, y la mantendremos actualizada ante cualquier cambio en las reglas de negocio del bot.
+
 ---
 
 ## ✍️ Cómo Crear una Nueva Skill
